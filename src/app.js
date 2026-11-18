@@ -71,7 +71,7 @@
     const done=new Set([...countryTimes.entries()].filter(([,time])=>time<=now).map(([code])=>code));
     set('stat-countries',String(done.size));set('stat-cities',String(regions.filter(c=>released(c,now)).length));set('stat-waves',String(waves.filter(t=>Date.parse(t)<=now).length));
   }
-  function cityURL(c){return en?`/en/release-time/${c.id}/`:`/horarios/${c.id}/`;}
+  function cityURL(c){return en?`/release-time/${c.id}/`:`/pt-br/horarios/${c.id}/`;}
   function selectCity(c){
     chosen=c;updateSelected(currentTime());recolorMap(currentTime());
     document.querySelectorAll('[data-list-city]').forEach(row=>row.classList.toggle('selected',row.dataset.listCity===c.id));
@@ -88,9 +88,18 @@
     const term=normalize(query);
     const match=regions.filter(c=>normalize([c.city,c.cityEn||'',c.country,c.countryEn,c.store].join(' ')).includes(term));
     const filtered=showOnlyNext?match.filter(c=>!released(c,now)):match;
+    const isLiveBoard=document.body.classList.contains('live-board');
     const fragment=document.createDocumentFragment();
     filtered.forEach(c=>{
       const number=regions.indexOf(c)+1;
+      if(isLiveBoard){
+        const row=document.createElement('a');row.className='live-city'+(released(c,now)?' reached':'')+(chosen&&chosen.id===c.id?' selected':'');row.href=cityURL(c);row.dataset.listCity=c.id;
+        const rank=document.createElement('span');rank.textContent=String(number).padStart(2,'0');
+        const flag=document.createElement('img');flag.src=`https://flagcdn.com/w80/${String(c.store).toLowerCase()}.png`;flag.alt=countryName(c)+' flag';flag.width=40;flag.height=30;
+        const name=document.createElement('strong');name.textContent=regionName(c);
+        const time=document.createElement('time');time.textContent=localHour(c);
+        row.append(rank,flag,name,time);fragment.append(row);return;
+      }
       const b=document.createElement('button');b.type='button';b.className='city-row'+(released(c,now)?' reached':'')+(chosen&&chosen.id===c.id?' selected':'');b.dataset.listCity=c.id;
       const rank=document.createElement('span');rank.className='rank';rank.textContent=number;
       const name=document.createElement('span');name.className='city-name';

@@ -24,14 +24,16 @@ const ordered=cities.slice().sort((a,b)=>Date.parse(a.utc)-Date.parse(b.utc) || 
 const titleFor=c=>c.city;
 const loc=(c,en)=>en?(c.cityEn||c.city):c.city;
 const nation=(c,en)=>en?c.countryEn:c.country;
-const cityPath=(c,en)=>en?`/en/release-time/${c.id}/`:`/horarios/${c.id}/`;
+// English is the default experience at the site root. Portuguese is available
+// only when visitors choose it from the language switcher.
+const cityPath=(c,en)=>en?`/release-time/${c.id}/`:`/pt-br/horarios/${c.id}/`;
 const siteLink=path=>siteUrl+path;
 const timeText=(c,en)=>new Intl.DateTimeFormat(en?'en-US':'pt-BR',{timeZone:c.tz,dateStyle:'full',timeStyle:'short',hourCycle:'h23'}).format(new Date(c.utc));
 const official='https://support.rockstargames.com/articles/29jV3Cv2cCgvwM1XgtMO5o/grand-theft-auto-vi-regional-pre-load-and-release-times-on-playstation-5-and-xbox-series-x-or-s';
 const origin='https://www.rockstargames.com/VI';
 function page({en=false,c=null}={}) {
-  const lang=en?'en':'pt-BR';const prefix=en?'/en/':'/';const path=c?cityPath(c,en):prefix;
-  const ptPath=c?cityPath(c,false):'/';const enPath=c?cityPath(c,true):'/en/';
+  const lang=en?'en':'pt-BR';const prefix=en?'/':'/pt-br/';const path=c?cityPath(c,en):prefix;
+  const ptPath=c?cityPath(c,false):'/pt-br/';const enPath=c?cityPath(c,true):'/';
   const title=c?(en?`GTA 6 release time in ${loc(c,true)} — live countdown, map & time zone`:`Que horas lança GTA 6 em ${loc(c,false)}? Contagem, mapa e horário`):(en?'GTA 6 Countdown — Global Release Times, World Map & Launch Tracker':'GTA 6 Countdown — Contagem regressiva, mapa mundial e horários por cidade');
   const desc=c?(en?`Find the scheduled GTA VI launch window in ${loc(c,true)}, ${nation(c,true)}: ${timeText(c,true)}. Live global countdown, city-by-city schedule and world map.`:`Horário previsto do GTA 6 em ${loc(c,false)}, ${nation(c,false)}: ${timeText(c,false)}. Veja a contagem regressiva em tempo real e o mapa mundial.`):(en?'Live GTA VI release countdown for November 19, 2026. Explore regional release times, an interactive world map, 71 tracked cities, official trailers and launch information.':'Contagem regressiva ao vivo do GTA 6 para 19 de novembro de 2026. Mapa mundial interativo, horários por região, 71 cidades, vídeos e trailers oficiais.');
   const canonical=siteUrl?`<link rel="canonical" href="${esc(siteLink(path))}"><link rel="alternate" hreflang="pt-BR" href="${esc(siteLink(ptPath))}"><link rel="alternate" hreflang="en" href="${esc(siteLink(enPath))}"><link rel="alternate" hreflang="x-default" href="${esc(siteLink('/'))}">`:'';
@@ -77,7 +79,7 @@ function page({en=false,c=null}={}) {
 }
 const routes=[];
 async function publish(path,html){const dest=join(out,path.replace(/^\//,''),'index.html');await mkdir(dirname(dest),{recursive:true});await writeFile(dest,html);routes.push(path);}
-await publish('/',page());await publish('/en/',page({en:true}));
+await publish('/',page({en:true}));await publish('/pt-br/',page());
 for(const c of cities){await publish(cityPath(c,false),page({c}));await publish(cityPath(c,true),page({c,en:true}));}
 await writeFile(join(out,'404.html'),page());
 await writeFile(join(out,'robots.txt'),`User-agent: *\nAllow: /\n${siteUrl?'Sitemap: '+siteLink('/sitemap.xml')+'\n':''}`);

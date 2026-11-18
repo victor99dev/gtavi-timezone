@@ -1,0 +1,12 @@
+# GTA VI Zero Hour — independent release countdown
+
+This site tracks scheduled regional Grand Theft Auto VI launch windows, with an interactive country/world map, city-by-city release times and official video references.
+
+- Release date: November 19, 2026 (source: https://www.rockstargames.com/VI)
+- Caveat: pink countries mean that a scheduled regional release timestamp was reached; this does not independently verify playable access.
+- Geographic time references: ISO UTC timestamps and IANA timezone conversion; store-region unlocks may differ from literal midnight in each city's clock.
+- Created by: victor99dev (Victor Batista), independent developer in Brazil.
+- Official support source: https://support.rockstargames.com/articles/29jV3Cv2cCgvwM1XgtMO5o/grand-theft-auto-vi-regional-pre-load-and-release-times-on-playstation-5-and-xbox-series-x-or-s
+- Pages: Configure siteUrl in site.config.json first/
+- GTA VI publisher/developer: Rockstar Games, not affiliated with this fan project.
+- All times and editorial copy should be checked against the console store before relying on them.

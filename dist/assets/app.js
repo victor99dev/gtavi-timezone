@@ -1,175 +1,128 @@
-/* GTA VI Zero Hour — original independent fan tracker. No libraries, no API keys. */
+/* GTA VI ZERO HOUR — vanilla JS: zero dependencies, static hosting, no Python. */
 (() => {
   'use strict';
-  const cities = (window.GTA_CITIES || []).slice().sort((a,b) => Date.parse(a.utc)-Date.parse(b.utc) || a.city.localeCompare(b.city));
-  if (!cities.length) return;
-  const lang = window.APP_LANG === 'en' ? 'en' : 'pt';
-  const isEn = lang === 'en';
-  const locale = isEn ? 'en-US' : 'pt-BR';
-  const live = document.body.classList.contains('live-page');
-  const label = (city) => isEn ? city.cityEn || city.city : city.city;
-  const country = (city) => isEn ? city.countryEn : city.country;
-  const ts = (city) => Date.parse(city.utc);
-  const byId = Object.fromEntries(cities.map(city => [city.id,city]));
-  const waves = [...new Set(cities.map(c => c.utc))];
-  const $ = (id) => document.getElementById(id);
-  const copy = isEn ? {
-    days:'DAYS',hours:'HRS',minutes:'MIN',seconds:'SEC',reached:'WINDOW STARTED',waiting:'COUNTING DOWN',selected:'SELECTED REGION',next:'NEXT WORLD UNLOCK',finished:'ALL WINDOWS REACHED',
-    noResults:'No cities match your search.',localTime:'Unlock time in this city',store:'Store region',share:'LINK COPIED!',copyFail:'Copy this page address:',windowReached:'Unlock window reached:',
-    nextUp:'Next region',all:'All scheduled launch windows have passed',unknown:'Time shown is based on regional store listings; your console is the definitive reference.'
+  const regions = (window.GTA_CITIES || []).slice().sort((a,b) => Date.parse(a.utc)-Date.parse(b.utc) || a.city.localeCompare(b.city));
+  const shapes = window.GTA_WORLD || [];
+  if (!regions.length) return;
+  const lang = document.documentElement.lang === 'en' ? 'en' : 'pt';
+  const en = lang === 'en';
+  const locale = en ? 'en-US' : 'pt-BR';
+  const TEXT = en ? {
+    upcoming:'NEXT WORLDWIDE UNLOCK', complete:'ALL TRACKED WINDOWS PASSED', launched:'WINDOW STARTED',waiting:'WAITING', next:'NEXT REGION',cities:'Tracked cities',world:'Unlocked countries',waves:'Launch waves',empty:'No matching cities',selected:'SELECTED REGION',first:'FIRST WAVE',regionTime:'Regional release window', source:'Scheduled window — platform storefront controls access',find:'Find a city or country...', sorted:'FIRST TO LAST',link:'See city page',countdownFor:'COUNTDOWN TO NEXT GLOBAL WAVE',copy:'Link copied',local:'Local time', allDone:'All listed release windows have passed', noClock:'No future launch window'
   } : {
-    days:'DIAS',hours:'HRS',minutes:'MIN',seconds:'SEG',reached:'JANELA INICIADA',waiting:'EM CONTAGEM',selected:'REGIÃO SELECIONADA',next:'PRÓXIMA LIBERAÇÃO MUNDIAL',finished:'TODAS AS JANELAS ATINGIDAS',
-    noResults:'Nenhuma cidade corresponde à busca.',localTime:'Horário de liberação nesta cidade',store:'Região da loja',share:'LINK COPIADO!',copyFail:'Copie o endereço desta página:',windowReached:'A janela começou:',
-    nextUp:'Próxima região',all:'Todas as janelas previstas de lançamento já passaram',unknown:'Os horários seguem listagens regionais; confirme o desbloqueio na sua loja do console.'
+    upcoming:'PRÓXIMA LIBERAÇÃO MUNDIAL', complete:'TODAS AS JANELAS JÁ PASSARAM',launched:'JANELA INICIADA',waiting:'AGUARDANDO',next:'PRÓXIMA REGIÃO',cities:'Cidades no mapa',world:'Países liberados',waves:'Ondas de lançamento',empty:'Nenhuma cidade encontrada',selected:'REGIÃO SELECIONADA',first:'PRIMEIRA LIBERAÇÃO',regionTime:'Janela regional de lançamento', source:'Janela prevista — a loja do console confirma o desbloqueio',find:'Busque cidade ou país...',sorted:'DO PRIMEIRO AO ÚLTIMO',link:'Ver página da cidade',countdownFor:'CONTAGEM PARA A PRÓXIMA REGIÃO',copy:'Link copiado',local:'Hora local',allDone:'Todas as janelas previstas já passaram',noClock:'Sem janelas futuras'
   };
-  let selectedId = window.APP_SELECTED || null;
-  let alphabetical = false;
-  let searchValue = '';
-  let lastWave = null;
-  let tickCount = 0;
-  const pad = n => String(n).padStart(2,'0');
-  const now = () => Date.now();
-  const released = (city, time=now()) => ts(city) <= time;
-  const future = (time=now()) => cities.find(c => ts(c) > time) || null;
-  const focused = (time=now()) => byId[selectedId] || future(time) || cities[cities.length-1];
-  const dateFormat = (city, time=ts(city)) => new Intl.DateTimeFormat(locale, {
-    timeZone: city.tz, day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false
-  }).format(new Date(time));
-  const displayShort = (city) => {
-    const parts = new Intl.DateTimeFormat(locale,{timeZone:city.tz,day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date(city.utc));
-    const part = type => (parts.find(p=>p.type===type)||{}).value||'';
-    return `${part('day')} ${part('month').toUpperCase().replace('.','')} · ${part('hour')}:${part('minute')}`;
-  };
-  const hourFormat = (city,time=ts(city)) => new Intl.DateTimeFormat(locale, {
-    timeZone:city.tz,hour:'2-digit',minute:'2-digit',hour12:false
-  }).format(new Date(time));
-  const utcFormat = city => new Intl.DateTimeFormat('en-GB', {
-    timeZone:'UTC',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false
-  }).format(new Date(city.utc)) + ' UTC';
-  const count = (target,time) => {
-    let left = Math.max(0,Math.floor((target - time)/1000));
-    const d = Math.floor(left / 86400);left%=86400;
-    const h = Math.floor(left / 3600);left%=3600;
-    const m = Math.floor(left / 60);
-    return [pad(d),pad(h),pad(m),pad(left%60)];
-  };
-  const set = (id, value) => {const el=$(id); if(el)el.textContent=value;};
-  function flash(message) {
-    const el=$('toast');if(!el)return;
-    el.textContent=message;el.hidden=false;
-    clearTimeout(flash.timer);flash.timer=setTimeout(()=>el.hidden=true,4300);
-  }
-  const pinXY = (city,inLive) => {
-    const x=(city.lon+180)/360;
-    const y=(86-city.lat)/172;
-    return {left: ((inLive? .01:.01)+ x*(inLive?.98:.98))*100+'%',top:((inLive?.01:.08) + y*(inLive?.98:.88))*100+'%'};
-  };
-  function makePin(city, inLive) {
-    const btn=document.createElement('button');
-    btn.type='button';btn.className='map-pin';btn.dataset.city=city.id;
-    btn.title=label(city)+' — '+dateFormat(city);
-    btn.setAttribute('aria-label',`${label(city)}, ${country(city)} — ${dateFormat(city)}`);
-    Object.assign(btn.style,pinXY(city,inLive));
-    // Prevent clustered markers from obscuring the map; every city remains in the searchable list.
-    const span=document.createElement('span');span.className='map-label';span.textContent=label(city);
-    btn.append(span);
-    btn.addEventListener('click',()=>selectCity(city.id));
-    return btn;
-  }
-  function drawMap(id, inLive) {
-    const el=$(id);if(!el)return;
-    cities.filter(c=>c.focus).forEach(c=>el.appendChild(makePin(c,inLive)));
-    updatePins();
-  }
-  function updatePins(time=now()) {
-    document.querySelectorAll('.map-pin').forEach(el=>{
-      const city=byId[el.dataset.city];
-      el.classList.toggle('reached',released(city,time));
-      el.classList.toggle('selected',city.id===focused(time).id);
-    });
-  }
-  function rowForCity(city,time) {
-    const b=document.createElement('button');b.className='region-item';b.type='button';
-    if (focused(time).id===city.id)b.classList.add('active');
-    const status = released(city,time) ? copy.reached : copy.waiting;
-    b.innerHTML=`<span class="flag" aria-hidden="true">${city.flag}</span><span class="region-name"><strong>${label(city)}</strong><small>${country(city)} · ${city.store}</small></span><span class="region-time"><strong>${displayShort(city)}</strong><small class="${released(city,time)?'reached':''}">${status}</small></span>`;
-    b.setAttribute('aria-label',label(city)+' '+dateFormat(city)+' '+status);
-    b.addEventListener('click',()=>selectCity(city.id));
-    return b;
-  }
-  function drawList(time=now()) {
-    const box=$('region-list');if(!box)return;
-    const filtered=cities.filter(c=>(label(c)+' '+country(c)+' '+c.city+' '+c.store).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(searchValue));
-    if(alphabetical)filtered.sort((a,b)=>label(a).localeCompare(label(b),locale));
-    box.replaceChildren(...(filtered.length?filtered.map(c=>rowForCity(c,time)):[Object.assign(document.createElement('div'),{className:'no-results',textContent:copy.noResults})]));
-    set('city-count',String(cities.length));
-    set('list-count',filtered.length+' / '+cities.length);
-  }
-  function drawLiveList(time=now()) {
-    const box=$('live-region-list');if(!box)return;
-    const unique=cities.filter((c,i)=>cities.findIndex(other=>other.utc===c.utc)===i);
-    const position=unique.findIndex(c=>ts(c)>time);
-    const start=position < 0 ? Math.max(0,unique.length-8):Math.max(0,Math.min(position-1,unique.length-8));
-    const show=unique.slice(start,start+8);
-    box.replaceChildren(...show.map(c=>{
-      const row=document.createElement('div');row.className='live-region-item'+(released(c,time)?' reached':'');
-      const str=new Intl.DateTimeFormat(locale,{timeZone:'UTC',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(c.utc));
-      row.innerHTML=`<span>${c.flag}</span><span class="where">${label(c)}</span><time>${str} UTC</time>`;
-      return row;
-    }));
-  }
-  function selectCity(id) {
-    if(!byId[id])return;
-    selectedId=id;
-    drawList();render();
-  }
-  function render(time=now()) {
-    const next=future(time);
-    // In live mode always follow the next worldwide launch wave.
-    const city=live ? (next || cities[cities.length-1]) : focused(time);
-    const nums=count(ts(city),time);
-    ['days','hours','minutes','seconds'].forEach((u,i)=>set('clock-'+u,nums[i]));
-    ['days','hours','minutes','seconds'].forEach((u,i)=>set('live-clock-'+u,nums[i]));
-    const done=released(city,time);
-    set('timer-target',done?copy.reached:`${city.flag} ${label(city)} · ${hourFormat(city)}`);
-    set('timer-mode',!selectedId?copy.next:copy.selected);
-    set('next-name',next?label(next):copy.all);
-    set('next-time',next?dateFormat(next):'—');
-    set('focus-city',label(city));set('focus-country',country(city));
-    set('focus-local-time',dateFormat(city));set('focus-utc',utcFormat(city));
-    set('focus-type',!selectedId?copy.next:copy.selected);
-    set('live-target',next?label(next):copy.finished);
-    set('live-target-country',next?`${next.flag} ${country(next)} · ${dateFormat(next)}`:copy.all);
-    const reachedCount=cities.filter(c=>released(c,time)).length;
-    const waveCount=waves.filter(w=>Date.parse(w)<=time).length;
-    set('cities-reached',`${reachedCount} / ${cities.length}`);
-    set('waves-reached',`${waveCount} / ${waves.length}`);
-    set('global-percent',Math.round(reachedCount/cities.length*100)+'%');
-    set('waves-percent',`${waveCount} / ${waves.length}`);
-    for(const id of ['progress-fill','live-progress-fill']){const el=$(id);if(el)el.style.width=reachedCount/cities.length*100+'%';}
-    updatePins(time);
-    tickCount++;
-    if(tickCount%5===1)drawList(time);
-    if(tickCount%3===1)drawLiveList(time);
-    const activeWave=next?.utc || 'end';
-    if(lastWave !== null && lastWave!==activeWave){
-      const previous=cities.find(c=>c.utc===lastWave);
-      if(previous && !live)flash(`${copy.windowReached} ${label(previous)} ${previous.flag}`);
+  const $=id=>document.getElementById(id);
+  const ts=c=>Date.parse(c.utc);
+  const byId=Object.fromEntries(regions.map(c=>[c.id,c]));
+  let chosen=byId[document.body.dataset.city]||null;
+  let query='';
+  let showOnlyNext=false;
+  let lastSecond=-1;
+  let lastFrontierId='';
+  const countryCodes=new Set(regions.map(c=>c.store));
+  const waves=[...new Set(regions.map(c=>c.utc))];
+  const regionName=c => en ? (c.cityEn||c.city):c.city;
+  const countryName=c => en ? c.countryEn:c.country;
+  const pad=n=>String(n).padStart(2,'0');
+  const dateLocal=c=>new Intl.DateTimeFormat(locale,{timeZone:c.tz,day:'2-digit',month:'short',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(c.utc));
+  const localHour=c=>new Intl.DateTimeFormat(locale,{timeZone:c.tz,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(c.utc));
+  const currentTime=()=>Date.now();
+  const released=(c,now)=>ts(c)<=now;
+  const upcoming=now=>regions.find(c=>ts(c)>now) || null;
+  const normalize=text=>text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase();
+  function set(id,value){const el=$(id);if(el)el.textContent=value;}
+  function countdown(utc,now){let sec=Math.max(0,Math.ceil((utc-now)/1000)); const days=Math.floor(sec/86400);sec%=86400;const hours=Math.floor(sec/3600);sec%=3600;const minutes=Math.floor(sec/60);return [pad(days),pad(hours),pad(minutes),pad(sec%60)];}
+  function createSvgEl(name,attrs={}){const el=document.createElementNS('http://www.w3.org/2000/svg',name);for(const [key,val] of Object.entries(attrs))el.setAttribute(key,String(val));return el;}
+  const toX=lon=>(lon+180)/360*1200;
+  const toY=lat=>(86-lat)/172*548;
+  function buildMap(){
+    const svg=$('world-map');if(!svg)return;
+    const grid=createSvgEl('g',{'aria-hidden':'true'});
+    for(let n=-150;n<=180;n+=30)grid.append(createSvgEl('path',{class:'graticule',d:`M ${toX(n)} 0 V 548`}));
+    for(let n=-60;n<=80;n+=20)grid.append(createSvgEl('path',{class:'graticule',d:`M 0 ${toY(n)} H 1200`}));
+    svg.append(grid);
+    const countries=createSvgEl('g',{'aria-label':en?'World map by country':'Mapa mundial por país'});
+    for(const country of shapes){
+      const group=createSvgEl('g',{'data-country':country.code || 'ZZ',class:'country-shape'});
+      for(const d of country.paths) group.append(createSvgEl('path',{class:'country',d}));
+      countries.append(group);
     }
-    lastWave=activeWave;
+    svg.append(countries);
+    const cities=createSvgEl('g',{'aria-label':en?'City locations':'Cidades'});
+    for(const c of regions){
+      const x=toX(c.lon),y=toY(c.lat);
+      const g=createSvgEl('g',{class:'pin',tabindex:'0',role:'button','data-pin':c.id,'aria-label':regionName(c)+', '+countryName(c)});
+      g.append(createSvgEl('circle',{cx:x,cy:y,r:c.focus?5:3.3}));
+      const title=createSvgEl('title');title.textContent=`${regionName(c)}, ${countryName(c)} — ${dateLocal(c)}`;g.append(title);
+      if(c.focus){const text=createSvgEl('text',{x:x+9,y:y-8,class:'pin-label','data-label':c.id});text.textContent=regionName(c);g.append(text);}
+      g.addEventListener('click',()=>selectCity(c));
+      g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectCity(c);}});
+      cities.append(g);
+    }
+    svg.append(cities);
+    recolorMap(currentTime());
   }
-  drawMap('world-map',false);
-  drawMap('live-map',true);
-  const search=$('region-search');if(search)search.addEventListener('input',e=>{searchValue=e.target.value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();drawList();});
-  const sort=$('sort-cities');if(sort)sort.addEventListener('click',()=>{alphabetical=!alphabetical;sort.textContent=alphabetical?'A–Z ↑':'UTC ↑';drawList();});
-  const reset=$('reset-target');if(reset)reset.addEventListener('click',()=>{selectedId=null;drawList();render();});
-  const share=$('copy-link');if(share)share.addEventListener('click',async()=>{
-    try{await navigator.clipboard.writeText(location.href);flash(copy.share);}
-    catch{window.prompt(copy.copyFail,location.href);}
-  });
-  const fullscreen=$('live-fullscreen');if(fullscreen)fullscreen.addEventListener('click',()=>{
-    if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();
-    else document.exitFullscreen?.();
-  });
-  render();setInterval(()=>render(),1000);
+  function recolorMap(now){
+    const countryTimes=new Map();
+    for(const c of regions){const prev=countryTimes.get(c.store);if(prev===undefined||ts(c)<prev)countryTimes.set(c.store,ts(c));}
+    document.querySelectorAll('[data-country]').forEach(g=>{const code=g.dataset.country;const unlock=countryTimes.get(code);g.querySelectorAll('.country').forEach(p=>{p.classList.toggle('reached',unlock!==undefined&&now>=unlock);p.classList.toggle('selected',Boolean(chosen)&&chosen.store===code);});});
+    document.querySelectorAll('[data-pin]').forEach(p=>{const c=byId[p.dataset.pin];p.classList.toggle('reached',released(c,now));p.classList.toggle('selected',Boolean(chosen)&&chosen.id===c.id);const label=p.querySelector('text');if(label){label.style.display=(chosen&&chosen.id!==c.id&&c.focus)||(!chosen&&c.focus)?'':'none';}});
+    const done=new Set([...countryTimes.entries()].filter(([,time])=>time<=now).map(([code])=>code));
+    set('stat-countries',String(done.size));set('stat-cities',String(regions.filter(c=>released(c,now)).length));set('stat-waves',String(waves.filter(t=>Date.parse(t)<=now).length));
+  }
+  function cityURL(c){return en?`/en/release-time/${c.id}/`:`/horarios/${c.id}/`;}
+  function selectCity(c){
+    chosen=c;updateSelected(currentTime());recolorMap(currentTime());
+    document.querySelectorAll('[data-list-city]').forEach(row=>row.classList.toggle('selected',row.dataset.listCity===c.id));
+  }
+  function updateSelected(now){
+    const c=chosen||upcoming(now)||regions[regions.length-1];
+    set('selected-city',c.flag+' '+regionName(c));set('selected-country',countryName(c));set('selected-datetime',dateLocal(c));
+    set('selected-state',released(c,now)?TEXT.launched:TEXT.waiting);
+    const more=$('selected-link');if(more){more.href=cityURL(c);more.textContent=TEXT.link+' ↗';}
+    const source=$('selected-source');if(source)source.textContent=TEXT.source;
+  }
+  function drawList(now){
+    const ul=$('city-list');if(!ul)return;
+    const term=normalize(query);
+    const match=regions.filter(c=>normalize([c.city,c.cityEn||'',c.country,c.countryEn,c.store].join(' ')).includes(term));
+    const filtered=showOnlyNext?match.filter(c=>!released(c,now)):match;
+    const fragment=document.createDocumentFragment();
+    filtered.forEach(c=>{
+      const number=regions.indexOf(c)+1;
+      const b=document.createElement('button');b.type='button';b.className='city-row'+(released(c,now)?' reached':'')+(chosen&&chosen.id===c.id?' selected':'');b.dataset.listCity=c.id;
+      const rank=document.createElement('span');rank.className='rank';rank.textContent=number;
+      const name=document.createElement('span');name.className='city-name';
+      const strong=document.createElement('strong');strong.className='city-title';strong.textContent=`${c.flag} ${regionName(c)}`;
+      const sub=document.createElement('small');sub.className='city-sub';sub.textContent=`${countryName(c)} · ${dateLocal(c)}`;
+      name.append(strong,sub);
+      const clock=document.createElement('span');clock.className='city-clock';
+      const time=document.createElement('strong');time.textContent=localHour(c);
+      const status=document.createElement('small');status.className=released(c,now)?'done':'';status.textContent=released(c,now)?'● '+TEXT.launched:TEXT.waiting;
+      clock.append(time,status);b.append(rank,name,clock);
+      b.addEventListener('click',()=>selectCity(c));
+      fragment.append(b);
+    });
+    if(!filtered.length){const message=document.createElement('p');message.style.cssText='padding:20px;color:#dbb0d3';message.textContent=TEXT.empty;fragment.append(message);}
+    ul.replaceChildren(fragment);
+    set('result-count',`${filtered.length} / ${regions.length}`);
+  }
+  function tick(){
+    const now=currentTime();
+    const sec=Math.floor(now/1000);if(sec===lastSecond)return;lastSecond=sec;
+    const frontier=upcoming(now);const reference=frontier||regions[regions.length-1];
+    const nums=frontier?countdown(ts(reference),now):['00','00','00','00'];
+    ['days','hours','minutes','seconds'].forEach((item,i)=>set('timer-'+item,nums[i]));
+    set('frontier',frontier?`${frontier.flag} ${regionName(frontier)} · ${dateLocal(frontier)}`:TEXT.allDone);
+    set('frontier-title',frontier?TEXT.countdownFor:TEXT.complete);
+    const newId=frontier?.id||'end';
+    if(newId!==lastFrontierId){lastFrontierId=newId; if(!chosen||!byId[chosen.id])updateSelected(now);drawList(now);}
+    updateSelected(now);
+    recolorMap(now);
+  }
+  $('search-cities')?.addEventListener('input',e=>{query=e.target.value;drawList(currentTime());});
+  $('filter-future')?.addEventListener('click',e=>{showOnlyNext=!showOnlyNext;e.currentTarget.setAttribute('aria-pressed',String(showOnlyNext));e.currentTarget.textContent=showOnlyNext?(en?'Show all':'Ver todas'):(en?'Pending only':'Só aguardando');drawList(currentTime());});
+  document.querySelectorAll('[data-video]').forEach(btn=>btn.addEventListener('click',()=>{const id=btn.dataset.video;if(!/^[\w-]{11}$/.test(id))return;const frame=document.createElement('iframe');frame.src=`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;frame.loading='lazy';frame.title=btn.getAttribute('aria-label')||'Rockstar video';frame.allow='accelerometer;autoplay;encrypted-media;gyroscope;picture-in-picture;web-share';frame.allowFullscreen=true;btn.replaceWith(frame); }));
+  buildMap();drawList(currentTime());tick();setInterval(tick,250);
 })();

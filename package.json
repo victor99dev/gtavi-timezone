@@ -9,5 +9,11 @@
     "dev": "node scripts/preview.mjs",
     "preview": "node scripts/preview.mjs"
   },
-  "engines": {"node": ">=20"}
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "eslint": "^10.15.0",
+    "prettier": "^3.10.1"
+  }
 }

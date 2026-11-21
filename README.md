@@ -28,7 +28,7 @@ node scripts/build.mjs --site-url=https://seu-dominio.com
 
 Isso gera `dist/sitemap.xml`, `<link rel="canonical">`, hreflang PT/EN e URLs Open Graph absolutas. Publique novamente `dist/` e envie `https://seu-dominio.com/sitemap.xml` ao Google Search Console. **Sem informar o domínio**, o site funciona normalmente, mas canonicals absolutos e sitemap ficam desativados para evitar links incorretos.
 
-SEO incluso: títulos e meta descrições por cidade, HTML já gerado no build (sem exigir JS para os conteúdos locais), dados estruturados `VideoGame`, `WebSite`, `WebPage`, `FAQPage` e `BreadcrumbList`, `robots.txt`, `llms.txt`, páginas bilíngues e navegação consistente. *Não existe garantia de ranqueamento no Google ou de aparecer em respostas de IA.*
+SEO incluso: títulos e meta descrições por cidade, HTML já gerado no build (sem exigir JS para os conteúdos locais), dados estruturados `VideoGame`, `WebSite`, `WebPage`, `FAQPage` e `BreadcrumbList`, `robots.txt`, `llms.txt`, páginas bilíngues e navegação consistente. _Não existe garantia de ranqueamento no Google ou de aparecer em respostas de IA._
 
 ## EDITAR / TESTAR LOCALMENTE
 
